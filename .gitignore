@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+dist/
+*.app
+.DS_Store
+
+# Copyrighted character art: personal use only, never commit.
+Assets/frieren/
