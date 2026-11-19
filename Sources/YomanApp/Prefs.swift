@@ -8,7 +8,6 @@ enum Prefs {
         static let sounds = "yoman.sounds"
         static let typing = "yoman.typing"
         static let scrollPaper = "yoman.scrollPaper"
-        static let hunting = "yoman.hunting"
         static let petting = "yoman.petting"
         static let stretchOn = "yoman.stretchOn"
         static let stretchMinutes = "yoman.stretchMinutes"
@@ -29,7 +28,7 @@ enum Prefs {
     static func register() {
         UserDefaults.standard.register(defaults: [
             Key.name: "Jagoan", Key.size: 2, Key.sounds: true, Key.typing: true, Key.scrollPaper: true,
-            Key.hunting: true, Key.petting: true, Key.stretchOn: true, Key.stretchMinutes: 50,
+            Key.petting: true, Key.stretchOn: true, Key.stretchMinutes: 50,
             Key.waterOn: true, Key.waterMinutes: 60, Key.peek: true, Key.focusMinutes: 25,
             Key.breakMinutes: 5, Key.longBreakMinutes: 15, Key.pinned: "", Key.music: true, Key.songTitle: true,
             Key.sleepSeconds: 15, Key.batterySaver: true,
@@ -45,7 +44,6 @@ enum Prefs {
     static var sounds: Bool { d.bool(forKey: Key.sounds) }
     static var typing: Bool { d.bool(forKey: Key.typing) }
     static var scrollPaper: Bool { d.bool(forKey: Key.scrollPaper) }
-    static var hunting: Bool { d.bool(forKey: Key.hunting) }
     static var petting: Bool { d.bool(forKey: Key.petting) }
     static var stretchOn: Bool { d.bool(forKey: Key.stretchOn) }
     static var stretchMinutes: Int { max(5, d.integer(forKey: Key.stretchMinutes)) }

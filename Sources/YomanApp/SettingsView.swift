@@ -18,7 +18,6 @@ struct SettingsView: View {
     @AppStorage(Prefs.Key.sounds) private var sounds = true
     @AppStorage(Prefs.Key.typing) private var typing = true
     @AppStorage(Prefs.Key.scrollPaper) private var scrollPaper = true
-    @AppStorage(Prefs.Key.hunting) private var hunting = true
     @AppStorage(Prefs.Key.petting) private var petting = true
     @AppStorage(Prefs.Key.stretchOn) private var stretchOn = true
     @AppStorage(Prefs.Key.stretchMinutes) private var stretchMinutes = 50
@@ -58,10 +57,9 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("Unroll paper when I scroll", isOn: $scrollPaper)
-                Toggle("Hunt fast cursors", isOn: $hunting)
                 Toggle("Purr when petted (wiggle the cursor over its head)", isOn: $petting)
                 Toggle("Peek from the screen edge in full screen", isOn: $peek)
-                Toggle("Battery saver on battery / Low Power Mode (no eye tracking or hunting)", isOn: $batterySaver)
+                Toggle("Battery saver on battery / Low Power Mode (no eye tracking)", isOn: $batterySaver)
                 Toggle("Vibe to Apple Music / Spotify", isOn: $music)
                 Toggle("Show the song title when a track starts", isOn: $songTitle)
                     .disabled(!music)

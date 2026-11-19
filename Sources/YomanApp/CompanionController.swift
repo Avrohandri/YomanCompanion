@@ -106,7 +106,6 @@ final class CompanionController: NSObject {
     private var lastDXSign = 0
     private var petting = false
     private var petTimer: Timer?
-    private var lastPounce: CFTimeInterval = -100
 
     private(set) var reminder: Reminder?
     private var reminderTimer: Timer?
@@ -128,8 +127,8 @@ final class CompanionController: NSObject {
     private var lastSample: (p: NSPoint, t: CFTimeInterval)?
     private var dragVelocity = CGVector.zero
     private var throwVelocity = CGVector.zero
-    /// Where a pounce lands (its starting height); nil lets a throw fall to the bottom of the screen.
-    private var landY: CGFloat?
+    /// True while the cat is in the air after being dropped or thrown; it always falls to the screen floor.
+    private var falling = false
     private var sx = Spring(1), sy = Spring(1), rot = Spring(0, stiffness: 120, damping: 6.5)
     /// Point (relative to the cat's bottom-center anchor, y up) that stays fixed while scaling/rotating:
     /// the grab point while dragging, so the cat hangs and stretches from where you hold it.
@@ -267,7 +266,7 @@ final class CompanionController: NSObject {
         return sleeping ? "sleep" : "idle"
     }
 
-    /// Re-evaluates which state should show. One-shots (greet, done, pounce, blink) finish first unless
+    /// Re-evaluates which state should show. One-shots (greet, done, blink) finish first unless
     /// something more important starts.
     private func refresh() {
         let base = baseState()
@@ -645,9 +644,9 @@ final class CompanionController: NSObject {
         }
     }
 
-    // MARK: Cursor: eyes, click-through, petting, hunting
+    // MARK: Cursor: eyes, click-through, petting
 
-    /// Battery saver: no eye tracking, hunting or state-change pops (click-through and petting still work).
+    /// Battery saver: no eye tracking or state-change pops (click-through and petting still work).
     var saver = false {
         didSet {
             guard saver != oldValue, saver else { return }
@@ -672,9 +671,8 @@ final class CompanionController: NSObject {
         if let last = lastCursor {
             let dt = now - last.t
             if dt > 0, dt < 0.5 {
-                let dx = p.x - last.p.x, dy = p.y - last.p.y
+                let dx = p.x - last.p.x
                 detectPetting(dx: dx, over: over && artY(p) < 44, now: now)
-                if !saver { detectHunt(p, speed: hypot(dx, dy) / dt, now: now) }
             }
         }
         lastCursor = (p, now)
@@ -719,20 +717,6 @@ final class CompanionController: NSObject {
         petting = false
         reversals.removeAll()
         refresh()
-    }
-
-    /// A fast cursor nearby makes the cat crouch, wiggle and pounce toward it.
-    private func detectHunt(_ p: NSPoint, speed: CGFloat, now: CFTimeInterval) {
-        guard Prefs.hunting, speed > 2200, now - lastPounce > 6, currentState == "idle", oneShot == nil,
-              !dragging, !peeking else { return }
-        let o = panel.frame.origin
-        let center = NSPoint(x: o.x + panelSize.width / 2, y: o.y + floorY + charSize.height / 2)
-        let dist = hypot(p.x - center.x, p.y - center.y)
-        guard dist < 340, dist > charSize.width * 0.6 else { return }
-        lastPounce = now
-        playOneShot("pounce")
-        hop(height: 13 * scale, duration: 0.4, delay: 0.4)
-        Sounds.play(Sounds.mrrp)
     }
 
     private func updateEyes(toward p: NSPoint) {
@@ -825,16 +809,26 @@ final class CompanionController: NSObject {
         dragging = false
         let recent = lastSample.map { CACurrentMediaTime() - $0.t < 0.08 } ?? false
         let speed = hypot(dragVelocity.dx, dragVelocity.dy)
-        landY = nil
         if recent, speed > 150 {
             let k = min(1, 3000 / speed)
             throwVelocity = CGVector(dx: dragVelocity.dx * k, dy: dragVelocity.dy * k)
         }
         sx.target = 1; sy.target = 1; rot.target = 0
-        sy.velocity -= 4  // land with a squash
-        sx.velocity += 3
+        // Wherever it's let go, it drops to the floor (the bottom of the screen) under gravity.
+        falling = !peeking
+        if !falling {
+            sy.velocity -= 4  // already on the floor: just land with a squash
+            sx.velocity += 3
+        }
         refresh()
         startPhysics()
+    }
+
+    /// Panel y at which the cat stands on the bottom of the screen it's on.
+    private func floorOrigin(_ o: NSPoint) -> CGFloat {
+        let charRect = NSRect(x: o.x + charOriginX, y: o.y + floorY, width: charSize.width, height: charSize.height)
+        let screen = NSScreen.screens.first { $0.visibleFrame.intersects(charRect) } ?? NSScreen.main
+        return (screen?.visibleFrame.minY ?? 0) - floorY
     }
 
     private func clicked() {
@@ -879,34 +873,37 @@ final class CompanionController: NSObject {
             sy.target = 1.22 + stretchY - stretchX * 0.6
             // Shaking sideways swings it like a pendulum around the grab point.
             rot.target = max(-0.45, min(0.45, vx / 2600))
-        } else if throwVelocity != .zero {
+        } else if falling || throwVelocity != .zero {
             var o = panel.frame.origin
             o.x += throwVelocity.dx * dt
             o.y += throwVelocity.dy * dt
             let f = pow(0.03, dt)
             throwVelocity = CGVector(dx: throwVelocity.dx * f, dy: throwVelocity.dy * f)
-            // A little gravity so pounces and throws land.
-            throwVelocity.dy -= 1800 * dt
-            var (clamped, hitX, hitY) = clampOrigin(o)
-            if let floor = landY, clamped.y < floor {
-                clamped.y = floor
-                hitY = true
-            }
+            throwVelocity.dy -= 2600 * dt  // gravity
+            let (clamped, hitX, hitY) = clampOrigin(o)
             if hitX { throwVelocity.dx *= -0.45; sx.velocity -= 3 }
-            if hitY {
-                let landing = throwVelocity.dy < 0
-                throwVelocity.dy *= landing ? -0.25 : -0.45
-                sy.velocity -= 3
-                if landing, abs(throwVelocity.dy) < 120 { throwVelocity.dy = 0 }
+            let onFloor = clamped.y <= floorOrigin(clamped) + 0.5
+            if hitY, throwVelocity.dy > 0 { throwVelocity.dy *= -0.45 }  // bumped the top edge
+            if onFloor, throwVelocity.dy < 0 {
+                let impact = -throwVelocity.dy
+                throwVelocity.dy = impact > 260 ? impact * 0.28 : 0  // small bounce, then rest
+                sy.velocity -= min(5, 1.5 + impact / 500)  // squash on landing
+                sx.velocity += min(4, 1 + impact / 650)
             }
             panel.setFrameOrigin(clamped)
-            if hypot(throwVelocity.dx, throwVelocity.dy) < 15 { throwVelocity = .zero }
+            if onFloor, throwVelocity.dy == 0 {
+                throwVelocity.dx *= pow(0.0005, dt)  // floor friction
+                if abs(throwVelocity.dx) < 15 {
+                    throwVelocity = .zero
+                    falling = false
+                }
+            }
         }
 
         sx.step(dt); sy.step(dt); rot.step(dt)
         applyTransform()
 
-        if !dragging, throwVelocity == .zero, sx.settled, sy.settled, rot.settled {
+        if !dragging, !falling, throwVelocity == .zero, sx.settled, sy.settled, rot.settled {
             sx.snap(); sy.snap(); rot.snap()
             if sx.value == 1, sy.value == 1 { pivot = .zero }
             applyTransform()
@@ -921,6 +918,8 @@ final class CompanionController: NSObject {
     // MARK: Debug
 
     /// Freezes a mid-drag pose (grab at the head, swung right) so the pivot math can be checked in a snapshot.
+    var panelY: Double { Double(panel.frame.origin.y) }
+
     func debugDragPose() {
         pivot = CGPoint(x: 0, y: charSize.height * 0.8)
         oneShot = nil
@@ -932,6 +931,11 @@ final class CompanionController: NSObject {
 
     func debugRelease() {
         sx.target = 1; sy.target = 1; rot.target = 0
+        // Lift it to mid-screen and let go, so the fall to the floor can be checked.
+        var o = panel.frame.origin
+        o.y = floorOrigin(o) + 400
+        panel.setFrameOrigin(o)
+        falling = !peeking
         refresh()
         startPhysics()
     }
@@ -1019,13 +1023,21 @@ final class CompanionController: NSObject {
         panel.setFrameOrigin(clampOrigin(panel.frame.origin).0)
     }
 
-    @objc private func screensChanged() { if !peeking { clampIntoScreen() } }
+    @objc private func screensChanged() {
+        guard !peeking else { return }
+        clampIntoScreen()
+        var o = panel.frame.origin
+        o.y = floorOrigin(o)
+        panel.setFrameOrigin(o)
+    }
 
     private func restoredOrigin() -> NSPoint {
         if let a = UserDefaults.standard.array(forKey: Self.originKey) as? [Double], a.count == 2 {
             let p = NSPoint(x: a[0], y: a[1])
             let charRect = NSRect(x: p.x + charOriginX, y: p.y + floorY, width: charSize.width, height: charSize.height)
-            if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(charRect) }) { return p }
+            if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(charRect) }) {
+                return NSPoint(x: p.x, y: floorOrigin(p))  // always start standing on the floor
+            }
         }
         return defaultOrigin()
     }

@@ -90,7 +90,7 @@ final class Canvas {
 enum Body: Equatable { case sit, loaf, crouch, dangle, stretch(Int), peek, drink, air }
 enum Eyes { case open, half, closed, happy }
 enum Mouth { case none, meow, tongue, yawn }
-enum Paws: Equatable { case down, keysL, keysR, keysBoth, wave(Int), tucked, pounce, bat(Bool) }
+enum Paws: Equatable { case down, keysL, keysR, keysBoth, wave(Int), tucked, bat(Bool) }
 enum Extra { case bang(Bool), zzz(Int), dots(Int), hearts(Int), steam(Int), sparkle(Int), bowl, roll, keys(Int), headphones, notes(Int) }
 
 struct Pose {
@@ -217,10 +217,6 @@ func draw(_ p: Pose) -> Canvas {
             c.rect(43, top, 46, 50, fur.body)
             c.rect(43, top, 43, 50, fur.rim)
             c.set(44, top, C.bean); c.set(45, top, C.bean)
-        case .pounce:
-            c.rect(21, 38, 25, 48, fur.body)
-            c.rect(39, 38, 43, 48, fur.body)
-            for x in [22, 23, 40, 41] { c.set(x, 38, C.bean) }
         case .bat(let out):
             leg(35, top: 51, bottom: 61)
             if out {
@@ -412,12 +408,6 @@ let states: [StateDef] = [
     StateDef(name: "petted", poses: (0..<4).map { i in P { $0.eyes = .happy; $0.bob = i % 2; $0.lean = [0, 1, 0, -1][i]
                  $0.tail = sway[i * 2]; $0.extras = [.hearts(i)] } },
              durations: [200, 200, 200, 200], loop: true, eyes: false),
-    StateDef(name: "pounce",
-             poses: [P { $0.body = .crouch; $0.lean = -1; $0.tail = -1 }, P { $0.body = .crouch; $0.lean = 1; $0.tail = 1 },
-                     P { $0.body = .crouch; $0.lean = -1; $0.tail = -1 }, P { $0.body = .crouch; $0.lean = 1; $0.tail = 1 },
-                     P { $0.body = .air; $0.paws = .pounce; $0.mouth = .meow; $0.tail = 2 },
-                     P { $0.bob = 2; $0.paws = .tucked }],
-             durations: [100, 100, 100, 100, 380, 180], loop: false, next: "idle"),
     StateDef(name: "stretch",
              poses: [P { $0.body = .stretch(0); $0.eyes = .closed }, P { $0.body = .stretch(1); $0.eyes = .closed },
                      P { $0.body = .stretch(2); $0.eyes = .closed }, P { $0.body = .stretch(2); $0.eyes = .closed; $0.mouth = .yawn },

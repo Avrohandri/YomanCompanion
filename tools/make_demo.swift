@@ -99,14 +99,14 @@ precondition(CGImageDestinationFinalize(gif))
 // MARK: State grid
 
 let order = ["idle", "working", "needs_you", "done", "typing", "overheat", "listening", "petted",
-             "paper", "pounce", "dragged", "stretch", "drink", "sleep", "peek", "greet"]
+             "paper", "dragged", "stretch", "drink", "sleep", "peek", "greet"]
 let gs = 3, cell = cw * gs, cols = 4, labelH = 34
 let rows = (order.count + cols - 1) / cols
 let GW = cols * cell, GH = rows * (cell + labelH)
 let grid = context(GW, GH)
 for (k, state) in order.enumerated() where spec.states[state] != nil {
     let col = k % cols, row = k / cols
-    let f = state == "done" ? 2 : state == "pounce" ? 4 : state == "stretch" ? 3 : 0
+    let f = state == "done" ? 2 : state == "stretch" ? 3 : 0
     drawCat(grid, state, min(f, spec.states[state]!.frames.count - 1), x: col * cell, yTop: row * (cell + labelH),
             scale: gs, canvasH: GH)
     text(grid, state.replacingOccurrences(of: "_", with: " "), centerX: CGFloat(col * cell + cell / 2),

@@ -248,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                      "accessibilityTrusted": AXIsProcessTrusted(), "listenAccess": CGPreflightListenEventAccess(),
                                      "keyTap": keys.isRunning,
                                      "typingPref": Prefs.typing, "visible": companion.isVisible,
-                                     "state": companion.currentState]
+                                     "state": companion.currentState, "y": companion.panelY]
             if let d = try? JSONSerialization.data(withJSONObject: st, options: [.sortedKeys]) {
                 try? d.write(to: YomanPaths.logDir.appendingPathComponent("status.json"))
             }

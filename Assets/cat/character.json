@@ -169,7 +169,7 @@
         3
       ],
       "loop" : true,
-      "row" : 13
+      "row" : 12
     },
     "greet" : {
       "durations_ms" : [
@@ -305,7 +305,7 @@
         3
       ],
       "loop" : true,
-      "row" : 15
+      "row" : 14
     },
     "needs_you" : {
       "durations_ms" : [
@@ -410,7 +410,7 @@
         3
       ],
       "loop" : true,
-      "row" : 14
+      "row" : 13
     },
     "peek" : {
       "durations_ms" : [
@@ -445,7 +445,7 @@
         3
       ],
       "loop" : true,
-      "row" : 16
+      "row" : 15
     },
     "petted" : {
       "durations_ms" : [
@@ -481,54 +481,6 @@
       ],
       "loop" : true,
       "row" : 10
-    },
-    "pounce" : {
-      "durations_ms" : [
-        100,
-        100,
-        100,
-        100,
-        380,
-        180
-      ],
-      "eye_offsets" : [
-        [
-          -1,
-          8
-        ],
-        [
-          1,
-          8
-        ],
-        [
-          -1,
-          8
-        ],
-        [
-          1,
-          8
-        ],
-        [
-          0,
-          0
-        ],
-        [
-          0,
-          2
-        ]
-      ],
-      "eyes" : true,
-      "frames" : [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "loop" : false,
-      "next" : "idle",
-      "row" : 11
     },
     "sleep" : {
       "durations_ms" : [
@@ -610,7 +562,7 @@
         5
       ],
       "loop" : true,
-      "row" : 12
+      "row" : 11
     },
     "typing" : {
       "durations_ms" : [
