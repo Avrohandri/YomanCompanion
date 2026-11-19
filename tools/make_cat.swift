@@ -376,7 +376,7 @@ let states: [StateDef] = [
     StateDef(name: "blink", poses: [P { $0.eyes = .half }, P { $0.eyes = .closed }, P { $0.eyes = .half }],
              durations: [50, 80, 50], loop: false, eyes: false, next: "idle"),
     StateDef(name: "working", poses: (0..<6).map { i in P { $0.tail = sway[i] * 0.5; $0.extras = [.dots(i)] } },
-             durations: Array(repeating: 200, count: 6), loop: true),
+             durations: Array(repeating: 400, count: 6), loop: true),
     StateDef(name: "needs_you",
              poses: [0, 1, 2, 1].enumerated().map { i, w in P { $0.paws = .wave(w); $0.mouth = i == 2 ? .meow : .none
                  $0.tail = 2; $0.extras = [.bang(i < 3)] } },

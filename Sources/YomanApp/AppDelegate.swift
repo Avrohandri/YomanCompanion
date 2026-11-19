@@ -139,11 +139,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// The cursor is sampled on a timer instead of receiving every mouse event (up to ~120/s): 12 Hz while you're
-    /// using the Mac, 2 Hz after 2 s without input, 4 Hz in battery saver (only for click-through, no eye tracking).
+    /// using the Mac, 2 Hz after 2 s without input, 4 Hz in battery saver or while Claude works (no eye tracking).
     /// Over the cat itself the window's tracking area still delivers every move, so petting stays responsive.
     private func startMousePolling() {
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
-        let interval: TimeInterval = power.saving ? 0.25 : (idle > 2 ? 0.5 : 1.0 / 12)
+        // 4 Hz is enough for click-through and petting when the eyes aren't following the cursor.
+        let calm = power.saving || companion.mood == .working
+        let interval: TimeInterval = idle > 2 ? 0.5 : (calm ? 0.25 : 1.0 / 12)
         if mouseTimer == nil || interval != mouseInterval {
             mouseTimer?.invalidate()
             mouseInterval = interval
@@ -266,12 +268,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "unpin": companion.setPinned(Prefs.pinned)
         case "pomodoro": reminders.startFocus()
         case "stop": reminders.stop()
+        case "settings":
+            settings.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [settings] in
+                settings.snapshot(to: YomanPaths.logDir.appendingPathComponent("settings.png"))
+            }
+        case "closesettings": settings.close()
         default: break
         }
     }
 
     private func updateMood() {
-        companion.mood = tracker.mood()
+        let mood = tracker.mood()
+        if mood != companion.mood, mood != .working { Memory.relieveSoon() }  // a burst of hook messages just ended
+        companion.mood = mood
         moodTimer?.invalidate()
         if let wait = tracker.nextTimeout() {
             let t = Timer(timeInterval: wait + 0.05, repeats: false) { [weak self] _ in self?.updateMood() }

@@ -415,6 +415,7 @@ final class CompanionController: NSObject {
             sleptAt = CACurrentMediaTime()
             if !stickyBubble { hideBubble() }
             refresh()
+            Memory.relieveSoon()
         } else if !shouldSleep && sleeping {
             // Only grumble about being woken after a real nap, not after every short pause.
             wake(quietly: CACurrentMediaTime() - sleptAt < 60)
@@ -667,7 +668,8 @@ final class CompanionController: NSObject {
         let over = isOverCharacter(p)
         // Setting this is a WindowServer round-trip, so only touch it when it actually changes.
         if !dragging, panel.ignoresMouseEvents == over { panel.ignoresMouseEvents = !over }
-        if !saver { updateEyes(toward: p) }
+        // No eye tracking in battery saver, nor while Claude works (the cat is busy thinking).
+        if !saver, mood != .working { updateEyes(toward: p) }
         if let last = lastCursor {
             let dt = now - last.t
             if dt > 0, dt < 0.5 {

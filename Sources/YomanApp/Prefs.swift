@@ -27,7 +27,7 @@ enum Prefs {
 
     static func register() {
         UserDefaults.standard.register(defaults: [
-            Key.name: "Jagoan", Key.size: 2, Key.sounds: true, Key.typing: true, Key.scrollPaper: true,
+            Key.name: "Jagoan", Key.size: 2, Key.sounds: false, Key.typing: true, Key.scrollPaper: true,
             Key.petting: true, Key.stretchOn: true, Key.stretchMinutes: 50,
             Key.waterOn: true, Key.waterMinutes: 60, Key.peek: true, Key.focusMinutes: 25,
             Key.breakMinutes: 5, Key.longBreakMinutes: 15, Key.pinned: "", Key.music: true, Key.songTitle: true,
