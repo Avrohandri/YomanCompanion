@@ -647,6 +647,18 @@ final class CompanionController: NSObject {
 
     // MARK: Cursor: eyes, click-through, petting, hunting
 
+    /// Battery saver: no eye tracking, hunting or state-change pops (click-through and petting still work).
+    var saver = false {
+        didSet {
+            guard saver != oldValue, saver else { return }
+            eyeShift = (0, 0)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layoutPupils()
+            CATransaction.commit()
+        }
+    }
+
     func cursorMoved(_ p: NSPoint) {
         guard isVisible else { return }
         let now = CACurrentMediaTime()
@@ -656,13 +668,13 @@ final class CompanionController: NSObject {
         let over = isOverCharacter(p)
         // Setting this is a WindowServer round-trip, so only touch it when it actually changes.
         if !dragging, panel.ignoresMouseEvents == over { panel.ignoresMouseEvents = !over }
-        updateEyes(toward: p)
+        if !saver { updateEyes(toward: p) }
         if let last = lastCursor {
             let dt = now - last.t
             if dt > 0, dt < 0.5 {
                 let dx = p.x - last.p.x, dy = p.y - last.p.y
                 detectPetting(dx: dx, over: over && artY(p) < 44, now: now)
-                detectHunt(p, speed: hypot(dx, dy) / dt, now: now)
+                if !saver { detectHunt(p, speed: hypot(dx, dy) / dt, now: now) }
             }
         }
         lastCursor = (p, now)
@@ -982,7 +994,7 @@ final class CompanionController: NSObject {
 
     /// A tiny springy "pop" so state changes feel alive instead of snapping.
     private func pop(_ strength: Double = 1) {
-        guard !dragging, isVisible else { return }
+        guard !dragging, isVisible, !saver else { return }
         sy.velocity += 1.3 * strength
         sx.velocity -= 0.9 * strength
         startPhysics()

@@ -28,6 +28,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.Key.music) private var music = true
     @AppStorage(Prefs.Key.songTitle) private var songTitle = true
     @AppStorage(Prefs.Key.sleepSeconds) private var sleepSeconds = 15
+    @AppStorage(Prefs.Key.batterySaver) private var batterySaver = true
     @AppStorage(Prefs.Key.focusMinutes) private var focusMinutes = 25
     @AppStorage(Prefs.Key.breakMinutes) private var breakMinutes = 5
     @AppStorage(Prefs.Key.longBreakMinutes) private var longBreakMinutes = 15
@@ -60,6 +61,7 @@ struct SettingsView: View {
                 Toggle("Hunt fast cursors", isOn: $hunting)
                 Toggle("Purr when petted (wiggle the cursor over its head)", isOn: $petting)
                 Toggle("Peek from the screen edge in full screen", isOn: $peek)
+                Toggle("Battery saver on battery / Low Power Mode (no eye tracking or hunting)", isOn: $batterySaver)
                 Toggle("Vibe to Apple Music / Spotify", isOn: $music)
                 Toggle("Show the song title when a track starts", isOn: $songTitle)
                     .disabled(!music)
@@ -92,8 +94,13 @@ struct SettingsView: View {
 }
 
 /// Hosts SettingsView in a normal window (the app itself has no Dock icon).
-final class SettingsWindowController {
+final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+
+    /// Drop the window (and SwiftUI with it) when closed, so it doesn't stay in memory.
+    func windowWillClose(_ notification: Notification) {
+        DispatchQueue.main.async { self.window = nil }
+    }
 
     func show() {
         if window == nil {
@@ -102,6 +109,7 @@ final class SettingsWindowController {
             w.title = "Yoman Settings"
             w.contentView = NSHostingView(rootView: SettingsView(trust: TrustModel()))
             w.isReleasedWhenClosed = false
+            w.delegate = self
             w.center()
             window = w
         }

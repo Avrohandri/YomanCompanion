@@ -4,7 +4,7 @@ A black-and-white pixel cat that keeps you company on macOS while you work, and 
 
 ![Yoman demo](.github/demo.gif)
 
-Native Swift (AppKit + Core Animation), about 1 MB, ~0% CPU when nothing is happening.
+Native Swift (AppKit + Core Animation), about 1 MB on disk, ~19 MB of memory and ~0.1–0.2% CPU when idle (a few percent while you type or move the mouse). On battery or in Low Power Mode it switches to a battery saver automatically.
 
 ## What it does
 

@@ -9,6 +9,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hotKey: HotKey?
     private var statusItem: NSStatusItem!
     private var monitors: [Any] = []
+    private let power = PowerWatcher()
+    private var mouseTimer: Timer?
+    private var mouseInterval: TimeInterval = 0
+    private var lastMouse = NSPoint(x: -1, y: -1)
     private lazy var keys = KeyListener { [weak self] in self?.companion.keyPressed() }
     private var tracker = SessionTracker()
     private var moodTimer: Timer?
@@ -60,6 +64,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         fullscreen.onChange = { [weak self] screen in self?.companion.setFullscreen(screen) }
         music.onChange = { [weak self] playing, track in self?.companion.setMusic(playing: playing, newTrack: track) }
         music.start()
+        power.onChange = { [weak self] saving in
+            self?.companion.saver = saving
+            if self?.mouseTimer != nil { self?.startMousePolling() }
+        }
+        power.start()
+        companion.saver = power.saving
         NotificationCenter.default.addObserver(self, selector: #selector(prefsChanged),
                                                name: UserDefaults.didChangeNotification, object: nil)
 
@@ -81,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         companion.mood = tracker.mood()
         companion.setPinned(Prefs.pinned)
         companion.setMusic(playing: music.isPlaying, newTrack: nil)
+        companion.saver = power.saving
     }
 
     @objc private func prefsChanged() {
@@ -88,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.async { [self] in
             reminders.applyPrefs()
             companion?.setMusic(playing: music.isPlaying, newTrack: nil)
+            power.update()
             if Prefs.size != appliedSize, companion != nil {
                 let wasVisible = companion.isVisible
                 companion.hide()
@@ -103,19 +115,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showCompanion() {
         companion.show()
         if monitors.isEmpty {
-            let move: (NSEvent) -> Void = { [weak self] _ in self?.companion.cursorMoved(NSEvent.mouseLocation) }
             let scroll: (NSEvent) -> Void = { [weak self] e in
                 self?.companion.scrolled(dy: e.scrollingDeltaY, precise: e.hasPreciseScrollingDeltas)
-            }
-            if let g = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged],
-                                                         handler: move) { monitors.append(g) }
-            if let l = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved], handler: { e in move(e); return e }) {
-                monitors.append(l)
             }
             if let s = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel], handler: scroll) { monitors.append(s) }
         }
         updateKeyMonitor()
         fullscreen.start()
+        startMousePolling()
         companion.cursorMoved(NSEvent.mouseLocation)
         UserDefaults.standard.set(true, forKey: Self.visibleKey)
     }
@@ -124,9 +131,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         companion.hide()
         monitors.forEach(NSEvent.removeMonitor)
         monitors.removeAll()
+        mouseTimer?.invalidate()
+        mouseTimer = nil
         updateKeyMonitor()
         fullscreen.stop()
         UserDefaults.standard.set(false, forKey: Self.visibleKey)
+    }
+
+    /// The cursor is sampled on a timer instead of receiving every mouse event (up to ~120/s): 12 Hz while you're
+    /// using the Mac, 2 Hz after 2 s without input, 4 Hz in battery saver (only for click-through, no eye tracking).
+    /// Over the cat itself the window's tracking area still delivers every move, so petting stays responsive.
+    private func startMousePolling() {
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+        let interval: TimeInterval = power.saving ? 0.25 : (idle > 2 ? 0.5 : 1.0 / 12)
+        if mouseTimer == nil || interval != mouseInterval {
+            mouseTimer?.invalidate()
+            mouseInterval = interval
+            let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.pollMouse() }
+            t.tolerance = interval * 0.2
+            RunLoop.main.add(t, forMode: .common)
+            mouseTimer = t
+        }
+    }
+
+    private func pollMouse() {
+        let p = NSEvent.mouseLocation
+        if p != lastMouse {
+            lastMouse = p
+            companion.cursorMoved(p)
+        }
+        startMousePolling()  // adjusts the rate when activity or power state changed
     }
 
     /// Key presses (timing only) for kneading, via a listen-only event tap (Input Monitoring permission).
@@ -210,7 +244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func debug(_ cmd: String) {
         switch cmd {
         case "status":
-            let st: [String: Any] = ["accessibilityTrusted": AXIsProcessTrusted(), "listenAccess": CGPreflightListenEventAccess(),
+            let st: [String: Any] = ["batterySaver": power.saving, "mouseHz": mouseInterval > 0 ? (1 / mouseInterval).rounded() : 0,
+                                     "accessibilityTrusted": AXIsProcessTrusted(), "listenAccess": CGPreflightListenEventAccess(),
                                      "keyTap": keys.isRunning,
                                      "typingPref": Prefs.typing, "visible": companion.isVisible,
                                      "state": companion.currentState]
