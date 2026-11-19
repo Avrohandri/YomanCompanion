@@ -65,7 +65,6 @@ final class CompanionController: NSObject {
     private let charLayer = CALayer()
     private let spriteLayer = CALayer()
     private let pupils = [CALayer(), CALayer()]
-    private let paperLayer = CALayer()
     private let bubble = CALayer()
     private let bubbleText = CATextLayer()
     private let tag = CALayer()
@@ -173,12 +172,6 @@ final class CompanionController: NSObject {
         charLayer.isGeometryFlipped = true  // sublayers use art coordinates: origin top-left
         root.addSublayer(charLayer)
 
-        paperLayer.backgroundColor = CGColor(srgbRed: 0.96, green: 0.95, blue: 0.93, alpha: 1)
-        paperLayer.borderColor = CGColor(srgbRed: 0.04, green: 0.04, blue: 0.05, alpha: 1)
-        paperLayer.borderWidth = max(1, scale / 2)
-        paperLayer.isHidden = true
-        paperLayer.actions = ["bounds": NSNull(), "position": NSNull(), "hidden": NSNull()]
-        charLayer.addSublayer(paperLayer)
 
         spriteLayer.frame = charLayer.bounds
         spriteLayer.magnificationFilter = .nearest
@@ -341,7 +334,6 @@ final class CompanionController: NSObject {
         CATransaction.setDisableActions(true)
         spriteLayer.contents = frame.image
         layoutPupils()
-        layoutPaper()
         CATransaction.commit()
     }
 
@@ -508,22 +500,8 @@ final class CompanionController: NSObject {
             paperTimer = nil
             refresh()
         }
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        layoutPaper()
-        CATransaction.commit()
     }
 
-    private func layoutPaper() {
-        guard let p = spec.paper, currentState == "paper", paperLength >= 1 else {
-            paperLayer.isHidden = true
-            return
-        }
-        let len = CGFloat(Int(paperLength))
-        paperLayer.frame = CGRect(x: (CGFloat(p.x) - len) * scale, y: CGFloat(p.y) * scale,
-                                  width: len * scale, height: CGFloat(p.height) * scale)
-        paperLayer.isHidden = false
-    }
 
     // MARK: Speech bubble and the small tag (pinned message / Pomodoro timer)
 
