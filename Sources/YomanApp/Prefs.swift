@@ -22,6 +22,7 @@ enum Prefs {
         static let messages = "yoman.messages"
         static let music = "yoman.music"
         static let songTitle = "yoman.songTitle"
+        static let sleepSeconds = "yoman.sleepSeconds"
     }
 
     static func register() {
@@ -30,6 +31,7 @@ enum Prefs {
             Key.hunting: true, Key.petting: true, Key.stretchOn: true, Key.stretchMinutes: 50,
             Key.waterOn: true, Key.waterMinutes: 60, Key.peek: true, Key.focusMinutes: 25,
             Key.breakMinutes: 5, Key.longBreakMinutes: 15, Key.pinned: "", Key.music: true, Key.songTitle: true,
+            Key.sleepSeconds: 15,
         ])
     }
 
@@ -51,6 +53,7 @@ enum Prefs {
     static var peek: Bool { d.bool(forKey: Key.peek) }
     static var music: Bool { d.bool(forKey: Key.music) }
     static var songTitle: Bool { d.bool(forKey: Key.songTitle) }
+    static var sleepSeconds: Int { max(5, d.integer(forKey: Key.sleepSeconds)) }
     static var focusMinutes: Int { max(1, d.integer(forKey: Key.focusMinutes)) }
     static var breakMinutes: Int { max(1, d.integer(forKey: Key.breakMinutes)) }
     static var longBreakMinutes: Int { max(1, d.integer(forKey: Key.longBreakMinutes)) }

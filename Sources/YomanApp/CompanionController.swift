@@ -86,7 +86,9 @@ final class CompanionController: NSObject {
     var onActivateClaude: (() -> Void)?
 
     private(set) var sleeping = false
-    var sleepAfter: TimeInterval = 10 * 60
+    /// Seconds without any mouse/keyboard input before the cat curls up (Settings → Sleep after).
+    var sleepAfter: TimeInterval { TimeInterval(Prefs.sleepSeconds) }
+    private var sleptAt: CFTimeInterval = 0
 
     // MARK: Activity reactions
 
@@ -239,12 +241,17 @@ final class CompanionController: NSObject {
 
     private func resumeTimers() {
         scheduleBlink()
+        checkIdle()
+    }
+
+    /// One timer aimed at the moment the idle threshold will be reached, instead of polling.
+    private func scheduleIdleCheck(after seconds: TimeInterval) {
         idleTimer?.invalidate()
-        let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.checkIdle() }
-        t.tolerance = 5
+        guard isVisible else { return }
+        let t = Timer(timeInterval: max(0.5, seconds), repeats: false) { [weak self] _ in self?.checkIdle() }
+        t.tolerance = 0.3
         RunLoop.main.add(t, forMode: .common)
         idleTimer = t
-        checkIdle()
     }
 
     // MARK: State machine
@@ -410,20 +417,27 @@ final class CompanionController: NSObject {
     }
 
     private func checkIdle() {
-        let shouldSleep = systemIdleSeconds() >= sleepAfter && mood != .working && mood != .needsYou && reminder == nil
+        let idle = systemIdleSeconds()
+        let shouldSleep = idle >= sleepAfter && mood != .working && mood != .needsYou && reminder == nil
         if shouldSleep && !sleeping {
             sleeping = true
+            sleptAt = CACurrentMediaTime()
             if !stickyBubble { hideBubble() }
             refresh()
         } else if !shouldSleep && sleeping {
-            wake(quietly: false)
+            // Only grumble about being woken after a real nap, not after every short pause.
+            wake(quietly: CACurrentMediaTime() - sleptAt < 60)
         }
+        // Awake: check again exactly when the threshold would be crossed. Asleep: input events wake it,
+        // and a slow check covers the rest.
+        scheduleIdleCheck(after: sleeping ? 10 : max(1, sleepAfter - idle + 0.2))
     }
 
     private func wake(quietly: Bool) {
         guard sleeping else { return }
         sleeping = false
         refresh()
+        scheduleIdleCheck(after: sleepAfter)
         if !quietly {
             playOneShot("greet")
             say(Lines.wake.randomElement()!, for: 3)
@@ -463,7 +477,9 @@ final class CompanionController: NSObject {
     // MARK: Scroll → paper roll
 
     func scrolled(dy: CGFloat, precise: Bool) {
-        guard isVisible, Prefs.scrollPaper, spec.paper != nil, abs(dy) > 0 else { return }
+        guard isVisible else { return }
+        if sleeping { checkIdle() }
+        guard Prefs.scrollPaper, spec.paper != nil, abs(dy) > 0 else { return }
         let gain = precise ? 0.06 : 1.6
         let was = paperLength
         paperLength = min(maxPaper, paperLength + Double(abs(dy)) * gain)

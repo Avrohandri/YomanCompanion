@@ -27,6 +27,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.Key.peek) private var peek = true
     @AppStorage(Prefs.Key.music) private var music = true
     @AppStorage(Prefs.Key.songTitle) private var songTitle = true
+    @AppStorage(Prefs.Key.sleepSeconds) private var sleepSeconds = 15
     @AppStorage(Prefs.Key.focusMinutes) private var focusMinutes = 25
     @AppStorage(Prefs.Key.breakMinutes) private var breakMinutes = 5
     @AppStorage(Prefs.Key.longBreakMinutes) private var longBreakMinutes = 15
@@ -43,6 +44,7 @@ struct SettingsView: View {
                     Text("Large").tag(3)
                 }
                 .pickerStyle(.segmented)
+                Stepper("Sleep after \(sleepSeconds) s without input", value: $sleepSeconds, in: 5...600, step: 5)
             }
             Section("Reactions") {
                 Toggle("Sounds (meow, purr)", isOn: $sounds)
