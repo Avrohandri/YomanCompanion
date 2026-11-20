@@ -1,5 +1,6 @@
 // Generates the bundled character pack: "Yoman", an original black pixel-art cat with a crisp white
 // outline (readable on any wallpaper) and white eyes with slit pupils. Strictly black, white and greys.
+// Also writes sheet_white.png: the inverse, a white cat with a dark outline and dark eyes with light pupils.
 //
 //   swift tools/make_cat.swift Assets/cat
 
@@ -16,22 +17,22 @@ func hex(_ s: String) -> RGBA {
 }
 
 struct Fur { let body, rim: RGBA }
-let blackFur = Fur(body: hex("#111111"), rim: hex("#2B2B2B"))
+var blackFur = Fur(body: hex("#111111"), rim: hex("#2B2B2B"))
 /// Overheat stays monochrome: the cat glows white-hot with a dark outline instead of turning red.
-let hotFur = Fur(body: hex("#F4F4F4"), rim: hex("#FFFFFF"))
+var hotFur = Fur(body: hex("#F4F4F4"), rim: hex("#FFFFFF"))
 
 enum C {
-    static let outline = hex("#F7F7F7"), glyphLine = hex("#141414")
-    static let eye = hex("#FFFFFF"), eyeShade = hex("#D6D6D6"), lid = hex("#EDEDED")
-    static let innerEar = hex("#3A3A3A"), nose = hex("#E6E6E6"), mouth = hex("#A8A8A8")
-    static let mouthOpen = hex("#3A3A3A"), whisker = hex("#EDEDED"), bean = hex("#D9D9D9")
-    static let keyTop = hex("#DCDCDC"), keyTopPressed = hex("#BEBEBE"), keySide = hex("#8E8E8E"), keyEdge = hex("#6B6B6B")
-    static let bang = hex("#FFFFFF"), zzz = hex("#FFFFFF"), heart = hex("#FFFFFF")
-    static let steam = hex("#FFFFFF"), sparkle = hex("#FFFFFF"), bubble = hex("#FFFFFF"), dot = hex("#2B2B2B")
-    static let bowl = hex("#D0D0D0"), bowlShade = hex("#A6A6A6"), bowlRim = hex("#F0F0F0"), water = hex("#FFFFFF")
-    static let phones = hex("#E6E6E6"), phonesShade = hex("#B5B5B5"), phonesBand = hex("#8A8A8A")
-    static let noteA = hex("#FFFFFF"), noteB = hex("#D6D6D6")
-    static let paper = hex("#F4F4F4"), paperShade = hex("#CCCCCC"), paperCore = hex("#8E8E8E")
+    static var outline = hex("#F7F7F7"), glyphLine = hex("#141414"), hotOutline = hex("#141414")
+    static var eye = hex("#FFFFFF"), eyeShade = hex("#D6D6D6"), lid = hex("#EDEDED")
+    static var innerEar = hex("#3A3A3A"), nose = hex("#E6E6E6"), mouth = hex("#A8A8A8")
+    static var mouthOpen = hex("#3A3A3A"), whisker = hex("#EDEDED"), bean = hex("#D9D9D9")
+    static var keyTop = hex("#DCDCDC"), keyTopPressed = hex("#BEBEBE"), keySide = hex("#8E8E8E"), keyEdge = hex("#6B6B6B")
+    static var bang = hex("#FFFFFF"), zzz = hex("#FFFFFF"), heart = hex("#FFFFFF")
+    static var steam = hex("#FFFFFF"), sparkle = hex("#FFFFFF"), bubble = hex("#FFFFFF"), dot = hex("#2B2B2B")
+    static var bowl = hex("#D0D0D0"), bowlShade = hex("#A6A6A6"), bowlRim = hex("#F0F0F0"), water = hex("#FFFFFF")
+    static var phones = hex("#E6E6E6"), phonesShade = hex("#B5B5B5"), phonesBand = hex("#8A8A8A")
+    static var noteA = hex("#FFFFFF"), noteB = hex("#D6D6D6")
+    static var paper = hex("#F4F4F4"), paperShade = hex("#CCCCCC"), paperCore = hex("#8E8E8E")
 }
 
 final class Canvas {
@@ -304,7 +305,7 @@ func draw(_ p: Pose) -> Canvas {
         }
     }
 
-    c.outline(p.hot ? C.glyphLine : C.outline)
+    c.outline(p.hot ? C.hotOutline : C.outline)
 
     let mirror = { (x: Int) in 2 * cx - 1 - x }
     for (x, y) in [(cx - 16, cy + 2), (cx - 15, cy + 2), (cx - 14, cy + 3), (cx - 13, cy + 3),
@@ -435,27 +436,45 @@ try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories:
 
 let cols = states.map(\.poses.count).max()!
 let sheetW = cols * 64, sheetH = states.count * 64
-var bytes = [UInt8](repeating: 0, count: sheetW * sheetH * 4)
-var colors = Set<UInt32>()
-for (row, s) in states.enumerated() {
-    for (col, pose) in s.poses.enumerated() {
-        let canvas = draw(pose)
-        for y in 0..<64 { for x in 0..<64 {
-            guard let p = canvas.get(x, y) else { continue }
-            let i = ((row * 64 + y) * sheetW + col * 64 + x) * 4
-            bytes[i] = p.r; bytes[i + 1] = p.g; bytes[i + 2] = p.b; bytes[i + 3] = 255
-            colors.insert(UInt32(p.r) << 16 | UInt32(p.g) << 8 | UInt32(p.b))
-        } }
+/// Renders every state into one sheet and writes it as `file`; returns the number of distinct colors.
+@discardableResult
+func writeSheet(_ file: String) -> Int {
+    var bytes = [UInt8](repeating: 0, count: sheetW * sheetH * 4)
+    var colors = Set<UInt32>()
+    for (row, s) in states.enumerated() {
+        for (col, pose) in s.poses.enumerated() {
+            let canvas = draw(pose)
+            for y in 0..<64 { for x in 0..<64 {
+                guard let p = canvas.get(x, y) else { continue }
+                let i = ((row * 64 + y) * sheetW + col * 64 + x) * 4
+                bytes[i] = p.r; bytes[i + 1] = p.g; bytes[i + 2] = p.b; bytes[i + 3] = 255
+                colors.insert(UInt32(p.r) << 16 | UInt32(p.g) << 8 | UInt32(p.b))
+            } }
+        }
     }
+
+    let ctx = CGContext(data: &bytes, width: sheetW, height: sheetH, bitsPerComponent: 8, bytesPerRow: sheetW * 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    let pngURL = outDir.appendingPathComponent(file)
+    let dest = CGImageDestinationCreateWithURL(pngURL as CFURL, UTType.png.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
+    precondition(CGImageDestinationFinalize(dest))
+    return colors.count
 }
 
-let ctx = CGContext(data: &bytes, width: sheetW, height: sheetH, bitsPerComponent: 8, bytesPerRow: sheetW * 4,
-                    space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+let colorCount = writeSheet("sheet.png")
 let pngURL = outDir.appendingPathComponent("sheet.png")
-let dest = CGImageDestinationCreateWithURL(pngURL as CFURL, UTType.png.identifier as CFString, 1, nil)!
-CGImageDestinationAddImage(dest, ctx.makeImage()!, nil)
-precondition(CGImageDestinationFinalize(dest))
+
+// The white cat: same poses, inverted palette (props that sit on the fur are inverted too, so they stay visible).
+blackFur = Fur(body: hex("#F2F2F2"), rim: hex("#D4D4D4"))
+hotFur = Fur(body: hex("#111111"), rim: hex("#2B2B2B"))  // overheats to "black-hot"
+C.outline = hex("#141414"); C.hotOutline = hex("#F7F7F7")
+C.eye = hex("#1C1C1C"); C.eyeShade = hex("#3A3A3A"); C.lid = hex("#2B2B2B")
+C.innerEar = hex("#C4C4C4"); C.nose = hex("#3A3A3A"); C.mouth = hex("#6B6B6B")
+C.mouthOpen = hex("#3A3A3A"); C.whisker = hex("#4A4A4A"); C.bean = hex("#8E8E8E")
+C.phones = hex("#3A3A3A"); C.phonesShade = hex("#2A2A2A"); C.phonesBand = hex("#5A5A5A")
+writeSheet("sheet_white.png")
 
 var stateJSON: [String: Any] = [:]
 for (row, s) in states.enumerated() {
@@ -472,8 +491,9 @@ let spec: [String: Any] = [
     "cell_width": 64, "cell_height": 64, "scale": 2,
     "eyes": ["left": [25, 28], "right": [37, 28], "pupil": [2, 3], "range": [1, 1], "color": "#0E0C12"],
     "paper": ["x": 5, "y": 57, "height": 3],
+    "variants": ["white": ["sheet": "sheet_white.png", "eye_color": "#F4F4F4"]],
     "states": stateJSON,
 ]
 let json = try JSONSerialization.data(withJSONObject: spec, options: [.prettyPrinted, .sortedKeys])
 try json.write(to: outDir.appendingPathComponent("character.json"))
-print("Wrote \(pngURL.path) (\(sheetW)x\(sheetH), \(colors.count) colors, \(states.count) states)")
+print("Wrote \(pngURL.path) + sheet_white.png (\(sheetW)x\(sheetH), \(colorCount) colors, \(states.count) states)")

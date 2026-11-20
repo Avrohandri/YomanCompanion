@@ -65,6 +65,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
                                       target: self, action: #selector(sizeChanged(_:)))
         size.selectedSegment = min(2, max(0, Prefs.size - 1))
         stack.addArrangedSubview(row(label("Cat size"), size))
+        let color = NSSegmentedControl(labels: ["Black", "White"], trackingMode: .selectOne,
+                                       target: self, action: #selector(colorChanged(_:)))
+        color.selectedSegment = Prefs.catColor == "white" ? 1 : 0
+        stack.addArrangedSubview(row(label("Cat color"), color))
         stack.addArrangedSubview(stepper(Prefs.Key.sleepSeconds, 5...600, step: 5) { "Sleep after \($0) s without input" })
 
         stack.addArrangedSubview(header("Reactions"))
@@ -176,6 +180,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         guard let key = s.identifier?.rawValue else { return }
         d.set(s.integerValue, forKey: key)
         if let e = steppers.first(where: { $0.0 === s }) { e.1.stringValue = e.2(s.integerValue) }
+    }
+
+    @objc private func colorChanged(_ c: NSSegmentedControl) {
+        d.set(c.selectedSegment == 1 ? "white" : "black", forKey: Prefs.Key.catColor)
     }
 
     @objc private func sizeChanged(_ c: NSSegmentedControl) {

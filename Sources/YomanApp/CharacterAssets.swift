@@ -14,13 +14,15 @@ final class CharacterAssets {
     let frames: [String: [Frame]]
     let pupilColor: CGColor
 
-    init(dir: URL) throws {
+    /// `variant` picks an alternative coloring from the pack (e.g. "white"); unknown names fall back to the default.
+    init(dir: URL, variant: String? = nil) throws {
         let spec = try CharacterSpec.load(from: dir)
+        let v = variant.flatMap { spec.variants?[$0] }
         let issues = spec.validate()
         guard issues.isEmpty else {
             throw NSError(domain: "Yoman", code: 1, userInfo: [NSLocalizedDescriptionKey: issues.joined(separator: "; ")])
         }
-        let url = dir.appendingPathComponent(spec.sheet)
+        let url = dir.appendingPathComponent(v?.sheet ?? spec.sheet)
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let sheet = CGImageSourceCreateImageAtIndex(src, 0, nil)
         else { throw NSError(domain: "Yoman", code: 2, userInfo: [NSLocalizedDescriptionKey: "cannot read \(url.path)"]) }
@@ -36,7 +38,7 @@ final class CharacterAssets {
         }
         self.spec = spec
         self.frames = out
-        self.pupilColor = Self.color(spec.eyes?.color ?? "#222222")
+        self.pupilColor = Self.color(v?.eyeColor ?? spec.eyes?.color ?? "#222222")
     }
 
     static func alphaMask(_ img: CGImage) -> [Bool] {

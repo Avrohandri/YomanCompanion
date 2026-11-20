@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let music = MusicWatcher()
     private let settings = SettingsWindowController()
     private var appliedSize = 0
+    private var appliedColor = "black"
     private var trustTimer: Timer?
 
     private static let visibleKey = "yoman.visible"
@@ -46,7 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         self.server = server
 
-        guard let dir = CharacterAssets.defaultDirectory(), let assets = try? CharacterAssets(dir: dir) else {
+        appliedColor = Prefs.catColor
+        guard let dir = CharacterAssets.defaultDirectory(),
+              let assets = try? CharacterAssets(dir: dir, variant: appliedColor == "white" ? "white" : nil) else {
             let alert = NSAlert()
             alert.messageText = "Yoman couldn't load its character."
             alert.informativeText = "Expected a character pack (character.json + sheet) in the app's Resources."
@@ -100,9 +103,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             reminders.applyPrefs()
             companion?.setMusic(playing: music.isPlaying, newTrack: nil)
             power.update()
+            if Prefs.catColor != appliedColor, let dir = CharacterAssets.defaultDirectory(),
+               let a = try? CharacterAssets(dir: dir, variant: Prefs.catColor == "white" ? "white" : nil) {
+                // Only one coloring is ever loaded: the old sheet is released when the cat is rebuilt below.
+                appliedColor = Prefs.catColor
+                assets = a
+                appliedSize = 0  // force the rebuild
+            }
             if Prefs.size != appliedSize, companion != nil {
                 let wasVisible = companion.isVisible
-                companion.hide()
+                companion.tearDown()
                 buildCompanion()
                 if wasVisible { showCompanion() }
             }
@@ -274,6 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 settings.snapshot(to: YomanPaths.logDir.appendingPathComponent("settings.png"))
             }
         case "closesettings": settings.close()
+        case "white", "black": UserDefaults.standard.set(cmd, forKey: Prefs.Key.catColor)
         default: break
         }
     }

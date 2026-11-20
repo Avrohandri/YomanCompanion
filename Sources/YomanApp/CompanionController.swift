@@ -231,6 +231,16 @@ final class CompanionController: NSObject {
         charLayer.setAffineTransform(.identity)
     }
 
+    /// Before this cat is replaced (size or color change): the display link holds a strong reference to us,
+    /// so it has to be invalidated or the old cat (and its sprite sheet) would stay in memory.
+    func tearDown() {
+        hide()
+        link?.invalidate()
+        link = nil
+        NotificationCenter.default.removeObserver(self)
+        panel.close()
+    }
+
     private func resumeTimers() {
         scheduleBlink()
         checkIdle()

@@ -41,9 +41,16 @@ public struct CharacterSpec: Codable, Sendable, Equatable {
         public var height: Int
     }
 
+    /// An alternative coloring of the same poses (e.g. "white"): its own sheet and pupil color.
+    public struct VariantSpec: Codable, Sendable, Equatable {
+        public var sheet: String
+        public var eyeColor: String?
+    }
+
     public var states: [String: StateSpec]
     public var eyes: EyesSpec?
     public var paper: PaperSpec?
+    public var variants: [String: VariantSpec]?
 
     public static func load(from dir: URL) throws -> CharacterSpec {
         let data = try Data(contentsOf: dir.appendingPathComponent("character.json"))

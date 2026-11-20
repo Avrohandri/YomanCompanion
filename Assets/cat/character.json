@@ -646,5 +646,11 @@
       "loop" : true,
       "row" : 2
     }
+  },
+  "variants" : {
+    "white" : {
+      "eye_color" : "#F4F4F4",
+      "sheet" : "sheet_white.png"
+    }
   }
 }
